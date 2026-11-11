@@ -1,13 +1,16 @@
 import ollama
 import pandas as pd
 import regex as re
+import numpy as np
+from sklearn.metrics import f1_score, accuracy_score, roc_auc_score
 import json
 import time
-import numpy as np
 import os
 from ollama._types import ResponseError
 
 model = 'gemma4'
+input_path = 'data/first_qual_sample.csv'
+out_file = 'data/fqs_out.csv'
 
 def extract_json(raw: str) -> dict:
     """Models sometimes wrap JSON in markdown fences or add stray text;
@@ -166,7 +169,7 @@ def classify_race(target_text, model = 'llama3.2:3b', temperature = 0.0):
 
 if __name__ == '__main__':
     # to_classify = pd.read_csv('data/full_sub_001_sample2.csv')
-    to_classify = pd.read_csv('data/first_qual_sample.csv')
+    to_classify = pd.read_csv(input_path)
     # numeric_utc = pd.to_numeric(to_classify['created_utc'], errors='coerce')
     # to_classify['created_utc'] = pd.to_datetime(numeric_utc, unit='s', utc=True)
 
@@ -187,7 +190,6 @@ if __name__ == '__main__':
     to_classify['excerpt'] = ''
     to_classify['reason'] = ''
 
-    out_file = 'data/fqs_out.csv'
     if os.path.exists(out_file):
         done_rows = pd.read_csv(out_file)
         to_classify = to_classify[~to_classify.full_text.isin(done_rows.full_text)].copy()
@@ -220,10 +222,7 @@ if __name__ == '__main__':
     print(f'{round(end_time - start_time, 2)} seconds elapsed')
 
     if('about_race_human' in to_classify.columns):
-
-        from sklearn.metrics import f1_score, accuracy_score, roc_auc_score
         thresh = 0.79
-
         predicted_proba = to_classify.dropna(subset=['probability', 'about_race_human']).probability.to_list()
         predicted = [x>thresh for x in predicted_proba]
         actual = to_classify.dropna(subset=['probability', 'about_race_human']).about_race_human.to_list()
